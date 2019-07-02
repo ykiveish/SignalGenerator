@@ -69,10 +69,12 @@ def main():
 	
 	protocol 		= MkSProtocol.Protocol()
 	uart 			= MkSUSBAdaptor.Adaptor(OnSerialAsyncDataHandler)
-	isConnected 	= uart.ConnectDevice(16, 3)
+	isConnected 	= uart.ConnectDevice(17, 3)
 	print ("UART device connected")
 	isConnected 	= True
 	
+	highValue = 2.0
+	deltaConvertion = 254.0 / 2.0
 	debug_graph = []
 	if (isConnected is True):		
 		packets = []
@@ -85,8 +87,12 @@ def main():
 				packets.append(txPacket)
 				samples = ""
 			
-			samples += struct.pack("B", int(float(col[1]))) # Values in CSV rabge from 0.1 to 1.9, this make a binary (0/1)
-			debug_graph.append(int(float(col[1])))
+			value = int(deltaConvertion*float(col[1]))
+			if (10 == value):
+				value = 9
+			#value = int(float(col[1]))
+			samples += struct.pack("B", value) # Values in CSV rabge from 0.1 to 1.9, this make a binary (0/1)
+			debug_graph.append(value)
 		
 		print ("Get UUID and Type")
 		txPacket = protocol.GetDeviceTypeCommand()
@@ -104,18 +110,18 @@ def main():
 		
 		print ("Send buffer...")
 		# Send BUFFER command
-		for packet in packets:
+		for packet in packets[:1]:
 			uart.Send(packet, True)
 			time.sleep(0.0125)
-			# print binascii.hexlify(sample)
+			#print binascii.hexlify(packet)
 		
 		time.sleep(0.1)
 		# Send STOP	command
 		txPacket = SignalGenerationStop()
 		uart.Send(txPacket, True)
 		
-		#plt.plot(debug_graph)
-		#plt.show()
+		plt.plot(debug_graph[:500 * 1])
+		plt.show()
 		
 		#while (IsMainRunning is True):
 		#	pass

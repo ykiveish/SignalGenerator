@@ -46,7 +46,7 @@ void startTimer(void);
 void stopTimer(void);
 void customOpcodeHandler(uint8_t * data);
 
-const int signal_an_pin = 9;
+const int signal_an_pin = A0;
 const int signal_pin = PB5;
 const int debug_pin = PB4;
 const int debug2_pin = PB3;
@@ -58,15 +58,15 @@ uint16_t 	bufferIndex 			= 0;
 uint16_t	bufferSize 				= 0;
 uint8_t 	amplitude 				= 0;
 uint8_t		signalGeneratorWorking 	= FALSE;
-uint8_t 	highValue 				= 1;
-uint8_t 	deltaConvertion			= 254 / highValue;
 
 void setup() {
 	Serial.begin(115200);
 	pinMode(signal_an_pin, OUTPUT);
+	pinMode(13, OUTPUT);
 	pinMode(12, OUTPUT);
 	pinMode(11, OUTPUT);
 	pinMode(10, OUTPUT);
+	pinMode(9, OUTPUT);
 	
 	/*
 	 * System defienition area (DO NOT CHANGE)
@@ -87,8 +87,32 @@ void setup() {
 	 * System defienition area (DO NOT CHANGE)
 	 */
 	
-	DDRB != (1 << signal_pin) | (1 << debug_pin) | (1 << debug2_pin) | (1 << debug3_pin);
+	DDRB != (1 << signal_pin) | (1 << debug_pin) | (1 << debug2_pin); // | (1 << debug3_pin);
 	setTimerValue(t1_comp);
+	
+	/*
+		Clear OC1A/OC1B on compare match when up-counting. Set
+		OC1A/OC1B on compare match when down counting.
+		
+		Fast PWM, 10-bit (0x03FF)
+	 */
+	TCCR1A = (1 << COM1A1) | (1 << WGM10) | (1 << WGM12);
+	/*
+		clkI/O/1 (no prescaling) [PWM period]
+	 */
+	TCCR1B = (1 << CS10);
+	/*
+		Enable interrupts.
+	 */
+	sei();
+	/*
+		Enable overflow interrupt
+	 */
+	TIMSK1 = (1 << TOIE1);
+	/*
+		Set counter compare (duty cycle)
+	 */
+	OCR1A = 0;
 }
 
 uint8_t serialDataLength = 0;
@@ -107,55 +131,52 @@ void loop() {
 		 */
 	}
 	
-	/*
 	if (TRUE == signalGeneratorWorking) {
-		analogWrite(signal_an_pin, amplitude);
-	}
-	*/
-}
-
-ISR(TIMER1_COMPA_vect) {
-	TCNT1 = 0;
-	
-	if (bufferIndex < bufferSize - 1) {
-		amplitude = (*(signalBuffer + bufferIndex)) * deltaConvertion;
-		bufferIndex++;
-		PORTB = PORTB | (1 << debug2_pin);
-		PORTB = PORTB & (~(1 << debug2_pin));
-	} else {
-		PORTB = PORTB | (1 << debug3_pin);
-		PORTB = PORTB & (~(1 << debug3_pin));
-	}
-	
-	if (amplitude) {
 		PORTB = PORTB | (1 << signal_pin);
-	} else {
 		PORTB = PORTB & (~(1 << signal_pin));
 	}
 }
 
+ISR(TIMER1_OVF_vect) {
+	OCR1A = amplitude;
+}
+
+int value = 0;
+ISR(TIMER0_COMPA_vect) {
+	TCNT0 = 0;
+		
+	if (bufferIndex < bufferSize - 1) {
+		amplitude = *(signalBuffer + bufferIndex);
+		bufferIndex++;
+		PORTB = PORTB | (1 << debug2_pin);
+		PORTB = PORTB & (~(1 << debug2_pin));
+	} else {
+		amplitude = 0;
+	}
+}
+
 void setTimerValue(uint16_t prescaler) {// Reset TIMER1 values
-	TCCR1A 	= 0;
+	TCCR0A 	= 0;
 	// Reset TIMER1 counter
-	TCNT1 	= 0;
+	TCNT0 	= 0;
 	// Set TIMER1 compare value
-	OCR1A 	= prescaler;
+	OCR0A 	= prescaler;
 }
 
 void startTimer(void) {
 	// Enable TIMER1 compare interrupt
-	TIMSK1 = (1 << OCIE1A);
+	TIMSK0 = (1 << OCIE0A);
 	// Enable global interrupts
 	sei();
 }
 
 void stopTimer(void) {
 	// Reset TIMER1 values
-	TCCR1A 	= 0;
+	TCCR0A 	= 0;
 	// Disable TIMER1 compare interrupt
-	TIMSK1 	= 0;
+	TIMSK0 	= 0;
 	// Set TIMER1 compare value
-	OCR1A 	= 0;
+	OCR0A 	= 0;
 	PORTB = PORTB & (~(1 << signal_pin));
 }
 
