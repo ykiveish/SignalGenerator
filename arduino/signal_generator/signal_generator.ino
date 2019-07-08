@@ -67,6 +67,7 @@ void setup() {
 	pinMode(11, OUTPUT);
 	pinMode(10, OUTPUT);
 	pinMode(9, OUTPUT);
+	pinMode(5, OUTPUT);
 	
 	/*
 	 * System defienition area (DO NOT CHANGE)
@@ -113,6 +114,8 @@ void setup() {
 		Set counter compare (duty cycle)
 	 */
 	OCR1A = 0;
+	
+	digitalWrite(5, LOW);
 }
 
 uint8_t serialDataLength = 0;
@@ -199,6 +202,7 @@ void customOpcodeHandler(uint16_t opcode, uint8_t * data) {
 			Serial.println(bufferSize);
 			
 			if (!signalGeneratorWorking) {
+				digitalWrite(5, HIGH);
 				startTimer();
 				signalGeneratorWorking = TRUE;
 			}

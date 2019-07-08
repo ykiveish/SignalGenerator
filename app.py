@@ -108,9 +108,15 @@ def main():
 		# txPacket = SignalGenerationStart()
 		# uart.Send(txPacket, True)
 		
+		dummy = ""
+		for idx in range(100):
+			dummy += struct.pack("B", idx)
+		txPacket = SignalGenerationBuffer(dummy, 100)
+		packets.append(txPacket)
+		
 		print ("Send buffer...")
 		# Send BUFFER command
-		for packet in packets[:1]:
+		for packet in packets[:]:
 			uart.Send(packet, True)
 			time.sleep(0.0125)
 			#print binascii.hexlify(packet)
@@ -120,7 +126,7 @@ def main():
 		txPacket = SignalGenerationStop()
 		uart.Send(txPacket, True)
 		
-		plt.plot(debug_graph[:500 * 1])
+		plt.plot(debug_graph[:])
 		plt.show()
 		
 		#while (IsMainRunning is True):
