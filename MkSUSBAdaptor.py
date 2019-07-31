@@ -45,11 +45,11 @@ class Adaptor ():
 			self.Interfaces = ["/dev/%s" % (str(item)) for item in dev if "ttyUSB" in item]
 			print self.Interfaces
 
-	def ConnectDevice(self, id, withtimeout):
+	def ConnectDevice(self, id, baud, withtimeout):
 		self.SerialAdapter 			= serial.Serial()
 		self.SerialAdapter.port		= self.Interfaces[id-1]
 		self.DeviceComNumber 		= id
-		self.SerialAdapter.baudrate	= 115200
+		self.SerialAdapter.baudrate	= baud # 115200, 921600
 		
 		try:
 			# That will disable the assertion of DTR which is resetting the board.
@@ -101,7 +101,7 @@ class Adaptor ():
 		uartData = str(data) + '\n'
 		# Now the device pause all async (if supporting) tasks
 		self.SerialAdapter.write(uartData)
-		print ("[OUT] " + ":".join("{:02x}".format(ord(c)) for c in uartData))
+		# print ("[OUT] " + ":".join("{:02x}".format(ord(c)) for c in uartData))
 		
 		if no_wait is True:
 			self.SendRequest = False
@@ -129,7 +129,7 @@ class Adaptor ():
 					self.DataArrived = True
 					print ("[IN]  " + ":".join("{:02x}".format(ord(c)) for c in self.RXData))
 			else:
-				print ("[IN ASYNC]  " + ":".join("{:02x}".format(ord(c)) for c in self.RXData))
+				# print ("[IN ASYNC]  " + ":".join("{:02x}".format(ord(c)) for c in self.RXData))
 				if len(self.RXData) > 2:
 					self.OnSerialAsyncDataCallback(self.RXData)
 		self.ExitRecievePacketsWorker = True

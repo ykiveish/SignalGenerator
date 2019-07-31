@@ -69,7 +69,7 @@ def main():
 	
 	protocol 		= MkSProtocol.Protocol()
 	uart 			= MkSUSBAdaptor.Adaptor(OnSerialAsyncDataHandler)
-	isConnected 	= uart.ConnectDevice(17, 3)
+	isConnected 	= uart.ConnectDevice(16, 115200, 3)
 	print ("UART device connected")
 	isConnected 	= True
 	
@@ -116,18 +116,20 @@ def main():
 		
 		print ("Send buffer...")
 		# Send BUFFER command
+		#while (IsMainRunning is True):
 		for packet in packets[:]:
 			uart.Send(packet, True)
-			time.sleep(0.0125)
+			time.sleep(0.01)
 			#print binascii.hexlify(packet)
 		
 		time.sleep(0.1)
+		
 		# Send STOP	command
 		txPacket = SignalGenerationStop()
 		uart.Send(txPacket, True)
 		
-		plt.plot(debug_graph[:])
-		plt.show()
+		#plt.plot(debug_graph[:])
+		#plt.show()
 		
 		#while (IsMainRunning is True):
 		#	pass

@@ -19,8 +19,14 @@ def OnSerialAsyncDataHandler(data):
 	DataBuffer += array.array('B', data).tolist()
 	print (DataCounter)
 	
-	if DataCounter > 4000:
+	if DataCounter > 2048 * 7:
 		DataCounter = 0
+		
+		file = open("dsp_raw_data.txt", "w")
+		for item in DataBuffer:
+			file.write("%s\n" % item)
+		file.close()
+		
 		plt.plot(DataBuffer[:])
 		plt.show()
 		IsMainRunning = False
@@ -34,7 +40,7 @@ def main():
 	signal.signal(signal.SIGINT, signal_handler)
 	
 	uart 			= MkSUSBAdaptor.Adaptor(OnSerialAsyncDataHandler)
-	isConnected 	= uart.ConnectDevice(4, 3)
+	isConnected 	= uart.ConnectDevice(4, 921600, 3)
 	print ("UART device connected")
 	
 	if (isConnected is True):
