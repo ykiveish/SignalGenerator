@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import MkSUSBAdaptor
 
-DATABAFFERFRAMELENGTH = 8128
+DATABAFFERFRAMELENGTH = 16386
 
 IsMainRunning 	= True
 DataCounter 	= 0
@@ -25,12 +25,14 @@ DataBuffer 		= []
 DataLock = threading.Lock()
 
 def Animate(i):
+	#print("ENTER")
 	DataLock.acquire()
 	if (len(DataBuffer) > DATABAFFERFRAMELENGTH):
 		ax1.clear()
 		ax1.plot([x for x in range(0, DATABAFFERFRAMELENGTH)], DataBuffer[:DATABAFFERFRAMELENGTH])
 		del DataBuffer[:DATABAFFERFRAMELENGTH]
 	DataLock.release()	
+	#print("EXIT")
 
 fig = plt.figure()
 ax1 = fig.add_subplot(1,1,1)
@@ -40,9 +42,11 @@ def OnSerialAsyncDataHandler(data):
 	global IsMainRunning, DataCounter, DataBuffer, line, xdata, ydata
 	DataCounter = len(data)
 	
+	print("D_ENTER")
 	DataLock.acquire()
 	DataBuffer += array.array('B', data).tolist()
 	DataLock.release()
+	print("D_EXIT")
 	
 	print (len(DataBuffer))
 
@@ -59,9 +63,9 @@ def main():
 	print ("UART device connected")
 	
 	plt.show()
-	if (isConnected is True):
-		while (IsMainRunning is True):
-			pass
+	#if (isConnected is True):
+	#	while (IsMainRunning is True):
+	#		pass
 	
 	print "Exit Node ..."
 

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 WINDOW_SIZE = 6
-DataBuffer = []
+RawData = []
 
 class Pulse():
 	def __init__(self, left, right, samples):
@@ -47,7 +47,9 @@ class SampleSummaryWindow():
 			self.LeftIndex 	+= 1
 			self.LeftItem 	= self.Buffer[self.LeftIndex]
 		
-		self.Sum -= self.LeftItem
+		if (self.RightIndex > WINDOW_SIZE):
+			self.Sum -= self.LeftItem
+		
 		self.Sum += sample
 		self.RightIndex += 1
 	
@@ -69,8 +71,8 @@ class SampleSummaryWindow():
 
 def Animate(i):
 	ax1.clear()
-	ax1.plot([x for x in range(0, len(DataBuffer))], DataBuffer)
-	ax2.plot([x for x in range(0, len(DataBuffer))], [x for x in range(0, len(DataBuffer))])
+	ax1.plot([x for x in range(0, len(RawData))], RawData)
+	ax2.plot([x for x in range(0, len(RawData))], [x for x in range(0, len(RawData))])
 
 fig = plt.figure()
 ax1 = fig.add_subplot(1,1,1)
@@ -90,106 +92,110 @@ def main():
 	data = file.read()
 	file.close()
 	
-	WindowFront 		= SampleSummaryWindow(DataBuffer)
-	WindowBack 			= SampleSummaryWindow(DataBuffer)
 	EnergyDiffSignal 	= []
 	EdgesSignal 		= []
-	
-	SumSignal 			= 0
-	SamplesCount		= 0
+	PulseSignal 		= []
+	PulseList 			= []
 	
 	for item in data.split("\r\n"):
 		if item is not "":
-			DataBuffer.append(int(item))
+			RawData.append(int(item))
 	
-	for idx, sample in enumerate(DataBuffer):
-		WindowFront.MoveWindowRight(sample)
+	frames = 0
+	for row in RawData[::2048]:
+		DataBuffer	= RawData[(frames * 2048):((frames + 1) * 2048)]
+		frames+=1
+		WindowFront 		= SampleSummaryWindow(DataBuffer)
+		WindowBack 			= SampleSummaryWindow(DataBuffer)
+		SumSignal 			= 0
+		SamplesCount		= 0
+		for idx, sample in enumerate(DataBuffer):
+			WindowFront.MoveWindowRight(sample)
+			
+			if (WindowFront.GetLeftIndex() - WindowBack.GetRightIndex() == 1):
+				WindowBack.MoveWindowRight(DataBuffer[idx - WINDOW_SIZE])
+			
+			EnergyDiffSignal.append(WindowFront.GetWindowSummary() - WindowBack.GetWindowSummary())
+			
+			if (sample > 25):
+				SumSignal += sample
+				SamplesCount += 1
 		
-		if (WindowFront.GetLeftIndex() - WindowBack.GetRightIndex() == 1):
-			WindowBack.MoveWindowRight(DataBuffer[idx - WINDOW_SIZE])
+		if (SamplesCount > 0):
+			AvgSample = (SumSignal / SamplesCount)
 		
-		EnergyDiffSignal.append(WindowFront.GetWindowSummary() - WindowBack.GetWindowSummary())
-		
-		if (sample > 25):
-			SumSignal += sample
-			SamplesCount += 1
-	
-	AvgSample = (SumSignal / SamplesCount)
-	
-	for sample in EnergyDiffSignal:
-		if (sample > AvgSample):
-			EdgesSignal.append(AvgSample)
-		elif (sample < -AvgSample):
-			EdgesSignal.append(-AvgSample)
-		else:
-			EdgesSignal.append(0)
-	
-	PulseLeftIndex 		= 0
-	PulseSampleCount 	= 0
-	IsPulse 			= False
-	PulseSignal 		= []
-	PulseList 			= []
-	# Gradient
-	PrevSample = EdgesSignal[0]
-	for idx, sample in enumerate(EdgesSignal[1:]):
-		if (sample != PrevSample):
-			if (PrevSample is 0):
-				if (sample > 0):
-					# Raising edge (positive) - Start pulse
-					PulseSignal.append(50)
-					if (IsPulse is False):
-						PulseLeftIndex = idx - 1
-					IsPulse = True
-					PulseSampleCount += 1
+			for sample in EnergyDiffSignal:
+				if (sample > AvgSample):
+					EdgesSignal.append(AvgSample)
+				elif (sample < -AvgSample):
+					EdgesSignal.append(-AvgSample)
 				else:
-					# Raising edge (negative)
-					PulseSignal.append(50)
-					IsPulse = True
-					PulseSampleCount += 1
-			elif (PrevSample > 0):
-				if (sample is 0):
-					# Falling edge (positive)
-					PulseSignal.append(50)
-					IsPulse = True
-					PulseSampleCount += 1
+					EdgesSignal.append(0)
+
+			PulseLeftIndex 		= 0
+			PulseSampleCount 	= 0
+			IsPulse 			= False
+			# Gradient
+			PrevSample = EdgesSignal[0]
+			for idx, sample in enumerate(EdgesSignal[1:]):
+				if (sample != PrevSample):
+					if (PrevSample is 0):
+						if (sample > 0):
+							# Raising edge (positive) - Start pulse
+							PulseSignal.append(50)
+							if (IsPulse is False):
+								PulseLeftIndex = idx - 1
+							IsPulse = True
+							PulseSampleCount += 1
+						else:
+							# Raising edge (negative)
+							PulseSignal.append(50)
+							IsPulse = True
+							PulseSampleCount += 1
+					elif (PrevSample > 0):
+						if (sample is 0):
+							# Falling edge (positive)
+							PulseSignal.append(50)
+							IsPulse = True
+							PulseSampleCount += 1
+						else:
+							# Error
+							pass
+					elif (PrevSample < 0):
+						if (sample is 0):
+							# Falling edge (negative) - End pulse
+							PulseSignal.append(0)
+							IsPulse = False
+							PulseList.append(Pulse(PulseLeftIndex, idx - 1, PulseSampleCount))
+							
+							PulseLeftIndex 		= 0
+							PulseRightIndex 	= 0
+							PulseSampleCount 	= 0
+						else:
+							# Error
+							pass
+					else:
+						# Error
+						pass
 				else:
-					# Error
-					pass
-			elif (PrevSample < 0):
-				if (sample is 0):
-					# Falling edge (negative) - End pulse
-					PulseSignal.append(0)
-					IsPulse = False
-					PulseList.append(Pulse(PulseLeftIndex, idx - 1, PulseSampleCount))
-					
-					PulseLeftIndex 		= 0
-					PulseRightIndex 	= 0
-					PulseSampleCount 	= 0
-				else:
-					# Error
-					pass
-			else:
-				# Error
-				pass
-		else:
-			# No change
-			if (PrevSample is 0):
-				if (IsPulse == True):
-					PulseSignal.append(50)
-					PulseSampleCount += 1
-				else:
-					PulseSignal.append(0)
-			else:
-				PulseSignal.append(50)
-		PrevSample = sample
-	
-	ax1.plot([x for x in range(0, len(DataBuffer))], DataBuffer)
-	#ax2.plot([x for x in range(0, len(EnergyDiffSignal))], EnergyDiffSignal)
-	#ax3.plot([x for x in range(0, len(EdgesSignal))], EdgesSignal)
+					# No change
+					if (PrevSample is 0):
+						if (IsPulse == True):
+							PulseSignal.append(50)
+							PulseSampleCount += 1
+						else:
+							PulseSignal.append(0)
+					else:
+						PulseSignal.append(50)
+				PrevSample = sample
+			
+	ax1.plot([x for x in range(0, len(RawData))], RawData)
+	ax2.plot([x for x in range(0, len(EnergyDiffSignal))], EnergyDiffSignal)
+	ax3.plot([x for x in range(0, len(EdgesSignal))], EdgesSignal)
 	ax4.plot([x for x in range(0, len(PulseSignal))], PulseSignal)
 	
-	#plt.plot([0, len(DataBuffer)], [AvgSample, AvgSample], 'k-', lw=1)
-	#plt.plot([0, len(DataBuffer)], [-AvgSample, -AvgSample], 'k-', lw=1)
+	plt.plot([0, len(RawData)], [AvgSample, AvgSample], 'k-', lw=1)
+	plt.plot([0, len(RawData)], [-AvgSample, -AvgSample], 'k-', lw=1)
 	
 	for pulse in PulseList:
 		middle = pulse.GetMiddle()

@@ -69,7 +69,7 @@ def main():
 	
 	protocol 		= MkSProtocol.Protocol()
 	uart 			= MkSUSBAdaptor.Adaptor(OnSerialAsyncDataHandler)
-	isConnected 	= uart.ConnectDevice(16, 115200, 3)
+	isConnected 	= uart.ConnectDevice(14, 115200, 3)
 	print ("UART device connected")
 	isConnected 	= True
 	
